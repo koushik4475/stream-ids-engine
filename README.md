@@ -1,6 +1,9 @@
 <div align="center">
 
-# ⚡ Stream IDS Engine
+# Stream IDS Engine | Real-Time Network Intrusion and Anomaly Detection Pipeline
+
+Stream IDS Engine is a Python and Rust project for processing network telemetry and detecting anomalous or potentially intrusive traffic patterns. Its documented pipeline combines stream aggregation with anomaly-detection models and security-oriented event analysis. The repository is useful for exploring network intrusion detection, real-time telemetry, and hybrid Python/Rust processing; treat detections as signals for analyst review, not proof of malicious activity.
+
 ### *Ultra-Low-Latency Real-Time Anomaly & Intrusion Detection System*
 
 [![CI Pipeline](https://github.com/ER-brocode/stream-ids-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ER-brocode/stream-ids-engine/actions)
