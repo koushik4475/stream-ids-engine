@@ -287,3 +287,37 @@ class TestEndToEndPipeline:
         ]
         assert latest_alert.anomaly.is_anomaly is True
         assert latest_alert.flow.packet_count >= 1
+
+
+def test_flow_aggregator_orders_late_packets_within_the_active_window():
+    aggregator = StreamFlowAggregator(window_seconds=5.0)
+
+    metrics = None
+    for timestamp in (100.0, 104.0, 102.0):
+        packet = PacketStreamDecoder.decode_dict_event(generate_normal_packet(timestamp, 0))
+        metrics = aggregator.ingest_packet(packet)
+
+    assert metrics is not None
+    assert metrics.packet_count == 3
+    assert metrics.duration == 4.0
+    assert metrics.avg_iat == pytest.approx(2.0)
+
+    state = next(iter(aggregator.flows.values()))
+    assert state.first_seen == 100.0
+    assert state.last_seen == 104.0
+    assert [packet.timestamp for packet in state.packets] == [100.0, 102.0, 104.0]
+
+
+def test_late_packet_does_not_move_flow_last_seen_backwards_or_expire_it():
+    aggregator = StreamFlowAggregator(window_seconds=30.0, max_inactive_seconds=5.0)
+
+    for timestamp in (100.0, 110.0, 101.0):
+        packet = PacketStreamDecoder.decode_dict_event(generate_normal_packet(timestamp, 0))
+        aggregator.ingest_packet(packet)
+
+    state = next(iter(aggregator.flows.values()))
+    assert state.last_seen == 110.0
+
+    expired = aggregator.cleanup_stale_flows(current_time=112.0)
+    assert expired == []
+    assert len(aggregator.flows) == 1

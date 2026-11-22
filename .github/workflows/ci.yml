@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Pytest with Synthetic Stream Suite
         run: |
-          pytest tests/ -v --durations=10
+          PYTHONPATH=. pytest tests/ -v --durations=10
 
   rust-check:
     name: Rust Fast-Path Engine Check
