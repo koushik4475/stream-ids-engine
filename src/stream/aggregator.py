@@ -3,6 +3,7 @@ Sliding-window flow aggregator for stateful network traffic stream analysis.
 """
 
 import math
+from bisect import bisect_right
 from collections import defaultdict, deque
 from typing import Dict, List, Optional, Iterator
 import numpy as np
@@ -22,9 +23,22 @@ class FlowState:
 
     def add_packet(self, packet: NetworkPacket):
         if not self.packets:
+            self.packets.append(packet)
             self.first_seen = packet.timestamp
-        self.last_seen = packet.timestamp
-        self.packets.append(packet)
+            self.last_seen = packet.timestamp
+            return
+
+        # Keep the deque timestamp-ordered so pruning and inter-arrival
+        # statistics remain correct when capture events arrive out of order.
+        if packet.timestamp >= self.packets[-1].timestamp:
+            self.packets.append(packet)
+        else:
+            timestamps = [existing.timestamp for existing in self.packets]
+            insert_at = bisect_right(timestamps, packet.timestamp)
+            self.packets.insert(insert_at, packet)
+
+        self.first_seen = self.packets[0].timestamp
+        self.last_seen = max(self.last_seen, packet.timestamp)
 
     def prune_older_than(self, cutoff_time: float):
         while self.packets and self.packets[0].timestamp < cutoff_time:
@@ -109,11 +123,11 @@ class StreamFlowAggregator:
         state.add_packet(packet)
 
         # Evict old packets outside window
-        state.prune_older_than(packet.timestamp - self.window_seconds)
+        state.prune_older_than(self.latest_timestamp - self.window_seconds)
 
         # Clean up stale flows periodically
         if len(self.flows) > 500:
-            self.cleanup_stale_flows(packet.timestamp)
+            self.cleanup_stale_flows(self.latest_timestamp)
 
         return state.get_metrics()
 
