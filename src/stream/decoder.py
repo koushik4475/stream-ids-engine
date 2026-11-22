@@ -72,30 +72,34 @@ class PacketStreamDecoder:
 
         if protocol_num == 6:  # TCP
             protocol_name = "TCP"
-            if packet_end >= offset + 20:
-                src_port, dst_port, seq, ack, offset_reserved, flags = struct.unpack("!HHLLBB", raw_data[offset:offset + 14])
-                tcp_flags = {
-                    "fin": bool(flags & 0x01),
-                    "syn": bool(flags & 0x02),
-                    "rst": bool(flags & 0x04),
-                    "psh": bool(flags & 0x08),
-                    "ack": bool(flags & 0x10),
-                    "urg": bool(flags & 0x20),
-                }
-                tcp_header_len = ((offset_reserved >> 4) & 0x0F) * 4
-                if tcp_header_len < 20 or packet_end < offset + tcp_header_len:
-                    return None
-                offset += tcp_header_len
+            if packet_end < offset + 20:
+                return None
+            src_port, dst_port, seq, ack, offset_reserved, flags = struct.unpack("!HHLLBB", raw_data[offset:offset + 14])
+            tcp_flags = {
+                "fin": bool(flags & 0x01),
+                "syn": bool(flags & 0x02),
+                "rst": bool(flags & 0x04),
+                "psh": bool(flags & 0x08),
+                "ack": bool(flags & 0x10),
+                "urg": bool(flags & 0x20),
+            }
+            tcp_header_len = ((offset_reserved >> 4) & 0x0F) * 4
+            if tcp_header_len < 20 or packet_end < offset + tcp_header_len:
+                return None
+            offset += tcp_header_len
         elif protocol_num == 17:  # UDP
             protocol_name = "UDP"
-            if packet_end >= offset + 8:
-                src_port, dst_port, length, checksum = struct.unpack("!HHHH", raw_data[offset:offset + 8])
-                if length < 8 or length > packet_end - offset:
-                    return None
-                offset += 8
-                packet_end = offset + length
+            if packet_end < offset + 8:
+                return None
+            src_port, dst_port, length, checksum = struct.unpack("!HHHH", raw_data[offset:offset + 8])
+            if length < 8 or length > packet_end - offset:
+                return None
+            offset += 8
+            packet_end = offset + length
         elif protocol_num == 1:  # ICMP
             protocol_name = "ICMP"
+            if packet_end < offset + 8:
+                return None
             offset += 8
 
         payload = raw_data[offset:packet_end]
