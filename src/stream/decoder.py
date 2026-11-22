@@ -48,7 +48,18 @@ class PacketStreamDecoder:
 
         ip_header = raw_data[offset:offset + 20]
         version_ihl = ip_header[0]
+        if version_ihl >> 4 != 4:
+            return None
+
         ihl = (version_ihl & 0x0F) * 4
+        if ihl < 20 or len(raw_data) < offset + ihl:
+            return None
+
+        total_length = struct.unpack("!H", ip_header[2:4])[0]
+        if total_length < ihl or total_length > len(raw_data) - offset:
+            return None
+        packet_end = offset + total_length
+
         protocol_num = ip_header[9]
         src_ip = ".".join(map(str, ip_header[12:16]))
         dst_ip = ".".join(map(str, ip_header[16:20]))
@@ -61,28 +72,37 @@ class PacketStreamDecoder:
 
         if protocol_num == 6:  # TCP
             protocol_name = "TCP"
-            if len(raw_data) >= offset + 20:
-                src_port, dst_port, seq, ack, offset_reserved, flags = struct.unpack("!HHLLBB", raw_data[offset:offset + 14])
-                tcp_flags = {
-                    "fin": bool(flags & 0x01),
-                    "syn": bool(flags & 0x02),
-                    "rst": bool(flags & 0x04),
-                    "psh": bool(flags & 0x08),
-                    "ack": bool(flags & 0x10),
-                    "urg": bool(flags & 0x20),
-                }
-                tcp_header_len = ((offset_reserved >> 4) & 0x0F) * 4
-                offset += tcp_header_len
+            if packet_end < offset + 20:
+                return None
+            src_port, dst_port, seq, ack, offset_reserved, flags = struct.unpack("!HHLLBB", raw_data[offset:offset + 14])
+            tcp_flags = {
+                "fin": bool(flags & 0x01),
+                "syn": bool(flags & 0x02),
+                "rst": bool(flags & 0x04),
+                "psh": bool(flags & 0x08),
+                "ack": bool(flags & 0x10),
+                "urg": bool(flags & 0x20),
+            }
+            tcp_header_len = ((offset_reserved >> 4) & 0x0F) * 4
+            if tcp_header_len < 20 or packet_end < offset + tcp_header_len:
+                return None
+            offset += tcp_header_len
         elif protocol_num == 17:  # UDP
             protocol_name = "UDP"
-            if len(raw_data) >= offset + 8:
-                src_port, dst_port, length, checksum = struct.unpack("!HHHH", raw_data[offset:offset + 8])
-                offset += 8
+            if packet_end < offset + 8:
+                return None
+            src_port, dst_port, length, checksum = struct.unpack("!HHHH", raw_data[offset:offset + 8])
+            if length < 8 or length > packet_end - offset:
+                return None
+            offset += 8
+            packet_end = offset + length
         elif protocol_num == 1:  # ICMP
             protocol_name = "ICMP"
+            if packet_end < offset + 8:
+                return None
             offset += 8
 
-        payload = raw_data[offset:]
+        payload = raw_data[offset:packet_end]
         entropy = cls.calculate_entropy(payload)
 
         return NetworkPacket(
