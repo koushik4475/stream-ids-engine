@@ -3,6 +3,6 @@ pub mod stream;
 pub mod detector;
 pub mod alerts;
 
-pub use stream::{NetworkPacket, FlowMetrics, FlowKey, PacketDecoder};
+pub use stream::{NetworkPacket, FlowMetrics, FlowKey, PacketDecoder, FlowTracker};
 pub use detector::{StreamingDetector, AnomalyResult};
 pub use alerts::{ThreatReport, ThreatSeverity, AttackType};
