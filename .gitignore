@@ -1,0 +1,20 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test and tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments and build artifacts
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Rust build output
+/target/
+/src-rust/target/
